@@ -7,14 +7,14 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const DEEPSEEK_API_KEY = process.env.DEEPSEEK_API_KEY;
-const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+const OLLAMA_API_URL = 'http://localhost:11434/api/chat';
+const OLLAMA_MODEL = 'llama3.2:latest';
 
 app.use(cors());
 app.use(express.json());
 
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'Backend is running' });
+  res.json({ status: 'ok', message: 'Backend is running with Ollama (Llama 3.2)' });
 });
 
 app.post('/api/chat', async (req, res) => {
@@ -25,14 +25,10 @@ app.post('/api/chat', async (req, res) => {
       return res.status(400).json({ error: 'Message is required' });
     }
 
-    if (!DEEPSEEK_API_KEY) {
-      return res.status(500).json({ error: 'DeepSeek API key not configured' });
-    }
-
     const response = await axios.post(
-      DEEPSEEK_API_URL,
+      OLLAMA_API_URL,
       {
-        model: 'deepseek-chat',
+        model: OLLAMA_MODEL,
         messages: [
           {
             role: 'system',
@@ -44,17 +40,11 @@ app.post('/api/chat', async (req, res) => {
           }
         ],
         temperature: 0.7,
-        max_tokens: 500
-      },
-      {
-        headers: {
-          'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
-          'Content-Type': 'application/json'
-        }
+        stream: false
       }
     );
 
-    const reply = response.data.choices[0].message.content;
+    const reply = response.data.message.content;
 
     res.json({
       success: true,
@@ -62,11 +52,11 @@ app.post('/api/chat', async (req, res) => {
       reply: reply
     });
   } catch (error) {
-    console.error('DeepSeek API Error:', error.response?.data || error.message);
+    console.error('Ollama API Error:', error.response?.data || error.message);
     res.status(500).json({
       success: false,
-      error: 'Failed to get response from DeepSeek',
-      details: error.response?.data?.error?.message || error.message
+      error: 'Failed to get response from Ollama. Make sure Ollama is running on http://localhost:11434',
+      details: error.message
     });
   }
 });
